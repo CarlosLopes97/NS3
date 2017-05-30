@@ -18,9 +18,11 @@
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
+#include "ns3/wifi-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/netanim-module.h"
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("FirstScriptExample");
@@ -47,7 +49,7 @@ main (int argc, char *argv[])
   server.Create (1);
 
   NodeContainer nodes;
-  nodes.Create (144);
+  nodes.Create (2);
 
   NodeContainer ab;
   ab.Add(server);
@@ -61,6 +63,39 @@ main (int argc, char *argv[])
   
   all.Add(server);
   all.Add(nodes);
+
+  YansWifiChannelHelper channel = YansWifiChannelHelper::Default ();
+  YansWifiPhyHelper phy = YansWifiPhyHelper::Default ();
+  phy.SetChannel (channel.Create ());
+
+  WifiHelper wifi; 
+  wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+
+  WifiMacHelper mac;
+
+  PointToPointHelper pointToPoint;
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
+
+  NetDeviceContainer devices;
+  NetDeviceContainer devices2;
+
+  Ssid ssid;
+
+  ssid = Ssid ("network-A");
+  phy.Set ("ChannelNumber", UintegerValue (36));
+  mac.SetType ("ns3::StaWifiMac",
+                "Ssid", SsidValue (ssid),
+                "ActiveProbing", BooleanValue (false));
+  devices = wifi.Install (phy, mac, ab);
+  mac.SetType ("ns3::ApWifiMac",
+               "Ssid", SsidValue (ssid));
+  devices2 = wifi.Install (phy, mac, bc);
+
+  devices = pointToPoint.Install (ab);
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Mbps"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
+  devices2 = pointToPoint.Install (bc);
 
   MobilityHelper mobility; 
   mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
@@ -84,20 +119,6 @@ if (Random) {
   mobility.Install (server);
   server.Get (0)->GetObject<MobilityModel> ()->SetPosition (Vector (0, 50, 10));
   server.Get (0)->GetObject<ConstantVelocityMobilityModel> ()->SetVelocity (Vector (speed, 0, 0));
-
-
-  PointToPointHelper pointToPoint;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
-
-  NetDeviceContainer devices;
-  devices = pointToPoint.Install (ab);
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Mbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
-
-  NetDeviceContainer devices2;
-  devices2 = pointToPoint.Install (bc);
-
 
   InternetStackHelper stack;
   stack.Install (all);
@@ -128,11 +149,11 @@ if (Random) {
 
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
-  pointToPoint.EnablePcapAll ("second", true);
+  pointToPoint.EnablePcapAll ("tres", true);
 
 //-------------------------Metodo-Animation-------------------------
 
-      AnimationInterface anim ("first.xml"); // Mandatory
+      AnimationInterface anim ("tres.xml"); // Mandatory
       for (uint32_t i = 0; i < nodes.GetN (); ++i)
       {
         anim.UpdateNodeDescription (nodes.Get (i), "NODE"); // Optional
