@@ -49,8 +49,9 @@ main (int argc, char *argv[])
   bc.Add(nodes);
 
   NodeContainer all;
-  all.Add(nodes);
+  
   all.Add(server);
+  all.Add(nodes);
 
   MobilityHelper mobility; 
   mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
@@ -112,7 +113,7 @@ main (int argc, char *argv[])
       AnimationInterface anim ("first.xml"); // Mandatory
       for (uint32_t i = 0; i < nodes.GetN (); ++i)
       {
-        anim.UpdateNodeDescription (nodes.Get (i), "N"); // Optional
+        anim.UpdateNodeDescription (nodes.Get (i), "NODE"); // Optional
         anim.UpdateNodeColor (nodes.Get (i), 255, 0, 0); // Coloração
       }
       for (uint32_t i = 0; i < server.GetN (); ++i)
