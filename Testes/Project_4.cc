@@ -44,6 +44,8 @@
 
 using namespace ns3;
 
+
+
 void ThroughputMonitor (FlowMonitorHelper *fmhelper, Ptr<FlowMonitor> flowMon,Gnuplot2dDataset DataSet);
 void JitterMonitor(FlowMonitorHelper *fmHelper, Ptr<FlowMonitor> flowMon, Gnuplot2dDataset Dataset2);
 void DelayMonitor(FlowMonitorHelper *fmHelper, Ptr<FlowMonitor> flowMon, Gnuplot2dDataset Dataset3);
@@ -56,6 +58,9 @@ main (int argc, char *argv[])
   LogComponentEnable ("EvalvidClient", LOG_LEVEL_INFO);
   LogComponentEnable ("EvalvidServer", LOG_LEVEL_INFO);
 
+  std::string phyMode ("DsssRate1Mbps");
+ 
+  Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue (phyMode));
 
   uint16_t numberOfNodes = 1;
   // double simTime = 5.0;
@@ -103,14 +108,10 @@ main (int argc, char *argv[])
   NodeContainer ueNodes;
   NodeContainer enbNodes;
   NodeContainer slNodes;
+  
   enbNodes.Create(numberOfNodes);
   ueNodes.Create(numberOfNodes);
-  
   slNodes.Create(3);
-  NodeContainer slNodes0 = NodeContainer (ueNodes, slNodes.Get (0));
-  NodeContainer slNodes1 = NodeContainer (ueNodes, slNodes.Get (1));
-  NodeContainer slNodes2 = NodeContainer (ueNodes, slNodes.Get (2));
-
 
   // Install Mobility Model
   Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
@@ -121,7 +122,7 @@ main (int argc, char *argv[])
   
   MobilityHelper mobility; 
   mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
-                                 "MinX", DoubleValue (10.0), //onde inicia no eixo X
+                                 "MinX", DoubleValue (30.0), //onde inicia no eixo X
                                  "MinY", DoubleValue (20.0), //onde inicia no eixo Y
                                  "DeltaX", DoubleValue (20.0), // Distância entre nós
                                  "DeltaY", DoubleValue (20.0), // Distância entre nós
@@ -132,7 +133,7 @@ main (int argc, char *argv[])
 
 
   mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
-                                 "MinX", DoubleValue (20.0), //onde inicia no eixo X
+                                 "MinX", DoubleValue (40.0), //onde inicia no eixo X
                                  "MinY", DoubleValue (20.0), //onde inicia no eixo Y
                                  "DeltaX", DoubleValue (20.0), // Distância entre nós
                                  "DeltaY", DoubleValue (20.0), // Distância entre nós
@@ -143,8 +144,8 @@ main (int argc, char *argv[])
 
 
   mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
-                                 "MinX", DoubleValue (30.0), //onde inicia no eixo X
-                                 "MinY", DoubleValue (5.0), //onde inicia no eixo Y
+                                 "MinX", DoubleValue (60.0), //onde inicia no eixo X
+                                 "MinY", DoubleValue (0.0), //onde inicia no eixo Y
                                  "DeltaX", DoubleValue (20.0), // Distância entre nós
                                  "DeltaY", DoubleValue (20.0), // Distância entre nós
                                  "GridWidth", UintegerValue (1), // Quantidade de colunas em uma linha
@@ -152,47 +153,74 @@ main (int argc, char *argv[])
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (slNodes);
 
-  
-  YansWifiChannelHelper channel = YansWifiChannelHelper::Default ();
-  YansWifiPhyHelper phy = YansWifiPhyHelper::Default ();
-  phy.SetChannel (channel.Create ());
+  mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
+                                 "MinX", DoubleValue (50.0), //onde inicia no eixo X
+                                 "MinY", DoubleValue (20.0), //onde inicia no eixo Y
+                                 "DeltaX", DoubleValue (20.0), // Distância entre nós
+                                 "DeltaY", DoubleValue (20.0), // Distância entre nós
+                                 "GridWidth", UintegerValue (1), // Quantidade de colunas em uma linha
+                                 "LayoutType", StringValue ("RowFirst")); // Definindo posições em linha
+  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+  mobility.Install (remoteHost);
 
-  
-  WifiHelper wifi; 
-  wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+  mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
+                                 "MinX", DoubleValue (10.0), //onde inicia no eixo X
+                                 "MinY", DoubleValue (20.0), //onde inicia no eixo Y
+                                 "DeltaX", DoubleValue (20.0), // Distância entre nós
+                                 "DeltaY", DoubleValue (20.0), // Distância entre nós
+                                 "GridWidth", UintegerValue (1), // Quantidade de colunas em uma linha
+                                 "LayoutType", StringValue ("RowFirst")); // Definindo posições em linha
+  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+  mobility.Install (pgw);
 
-  WifiMacHelper mac;
 
-  CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", DataRateValue (DataRate (5000)));
-  csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (2)));
+								WifiHelper wifi;
 
-  NetDeviceContainer slDev0 = csma.Install (slNodes0);
-  NetDeviceContainer slDev1 = csma.Install (slNodes1);
-  NetDeviceContainer slDev2 = csma.Install (slNodes2);
-  
+								YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
+								// set it to zero; otherwise, gain will be added
+								wifiPhy.Set ("RxGain", DoubleValue (-10) );
+								// ns-3 supports RadioTap and Prism tracing extensions for 802.11b
+								wifiPhy.SetPcapDataLinkType (YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
 
-  InternetStackHelper internet2;
-  internet2.Install (slNodes);
+								YansWifiChannelHelper wifiChannel;
+								wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
+								wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel");
+								wifiPhy.SetChannel (wifiChannel.Create ());
 
-  Ssid ssid;
-  ssid = Ssid ("network-A");
+								// Add an upper mac and disable rate control
+								WifiMacHelper wifiMac;
+								wifi.SetStandard (WIFI_PHY_STANDARD_80211b);
+								wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
+												              "DataMode",StringValue (phyMode),
+												              "ControlMode",StringValue (phyMode));
+								// Set it to adhoc mode
+								wifiMac.SetType ("ns3::AdhocWifiMac");
+								NetDeviceContainer slDev = wifi.Install (wifiPhy, wifiMac, slNodes);
 
-  phy.Set ("ChannelNumber", UintegerValue (36));
-  mac.SetType ("ns3::StaWifiMac",
-                "Ssid", SsidValue (ssid),
-                "ActiveProbing", BooleanValue (false));
-  slDev0 = wifi.Install (phy, mac, slNodes0);
-  slDev1 = wifi.Install (phy, mac, slNodes1);
-  slDev2 = wifi.Install (phy, mac, slNodes2);
 
-  Ipv4AddressHelper address;
-  address.SetBase ("192.168.1.0", "255.255.255.0");
-  address.Assign (slDev0);
-  address.SetBase ("192.168.2.0", "255.255.255.0");
-  address.Assign (slDev1);
-  address.SetBase ("192.168.3.0", "255.255.255.0");
-  address.Assign (slDev2);
+
+				  // Ptr<LteHelper> lteHelper = CreateObject<LteHelper> ();
+				  // //Ptr<EpcHelper>  epcHelper = CreateObject<EpcHelper> ();
+				  // Ptr<PointToPointEpcHelper>  epcHelper = CreateObject<PointToPointEpcHelper> ();
+				  // lteHelper->SetEpcHelper (epcHelper);
+				  // lteHelper->SetSchedulerType("ns3::PfFfMacScheduler");
+
+				  // Ptr<Node> pgw = epcHelper->GetPgwNode ();
+
+
+				  // Create a single RemoteHost
+				  internet.Install (slNodes);
+				  Ipv4AddressHelper ipv4h;
+				  ipv4h.SetBase ("2.0.0.0", "255.0.0.0");
+				  Ipv4InterfaceContainer intersl = ipv4h.Assign (slDev);
+				  // interface 0 is localhost, 1 is the p2p device
+				  // Ipv4Address remoteHostAddr = internetIpIfaces.GetAddress (1);
+
+				  Ipv4StaticRoutingHelper ipv4RoutingHelper;
+				  Ptr<Ipv4StaticRouting> SlNodeStaticRouting = ipv4RoutingHelper.GetStaticRouting (slNodes->GetObject<Ipv4> ());
+				  SlNodeStaticRouting->AddNetworkRouteTo (Ipv4Address ("8.0.0.0"), Ipv4Mask ("255.0.0.0"), 1);
+
+
 
   // Install LTE Devices to the nodes
   NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (enbNodes);
@@ -220,42 +248,15 @@ main (int argc, char *argv[])
   EvalvidServerHelper server(port);
   server.SetAttribute ("SenderTraceFilename", StringValue("st_highway_cif.st"));
   server.SetAttribute ("SenderDumpFilename", StringValue("sd_a01_lte"));
-  ApplicationContainer apps = server.Install(remoteHostContainer.Get(0));
+  ApplicationContainer apps = server.Install(enbNodes.Get(0));
   apps.Start (Seconds (9.0));
   apps.Stop (Seconds (101.0));
   
-  EvalvidClientHelper client (internetIpIfaces.GetAddress (1),port);
+  EvalvidClientHelper client (intersl.GetAddress (1), port);
   client.SetAttribute ("ReceiverDumpFilename", StringValue("rd_a01_lte"));
   apps = client.Install (ueNodes.Get(0));
   apps.Start (Seconds (10.0));
   apps.Stop (Seconds (90.0));
-  
-
-  // RFC 863 discard port ("9") indicates packet should be thrown away
-  // by the system.  We allow this silent discard to be overridden
-  // by the PacketSink application.
-  uint16_t port2  = 9;
-
-  // Create the OnOff application to send UDP datagrams of size
-  // 512 bytes (default) at a rate of 500 Kb/s (default) from n0
-  OnOffHelper onoff ("ns3::UdpSocketFactory", 
-                     Address (InetSocketAddress (Ipv4Address ("255.255.255.255"), port2)));
-  onoff.SetConstantRate (DataRate ("500kb/s"));
-
-  ApplicationContainer app2 = onoff.Install (slNodes0);
-  // Start the application
-  app2.Start (Seconds (1.0));
-  app2.Stop (Seconds (10.0));
-
-  // Create an optional packet sink to receive these packets
-  PacketSinkHelper sink ("ns3::UdpSocketFactory",
-                         Address (InetSocketAddress (Ipv4Address::GetAny (), port2)));
-  app2 = sink.Install (slNodes0);
-  app2.Add (sink.Install (slNodes1));
-  app2.Add (sink.Install (slNodes2));
-  app2.Start (Seconds (1.0));
-  app2.Stop (Seconds (10.0));
-
 
 
 
@@ -264,18 +265,18 @@ main (int argc, char *argv[])
       AnimationInterface anim ("Project_4.xml"); // Mandatory
       for (uint32_t i = 0; i < ueNodes.GetN (); ++i)
       {
-        anim.UpdateNodeDescription (ueNodes.Get (i), "NODE"); // Optional
+        anim.UpdateNodeDescription (ueNodes.Get (i), "MR NODE"); // Optional
         anim.UpdateNodeColor (ueNodes.Get (i), 255, 0, 0); // Coloração
       }
       for (uint32_t i = 0; i < enbNodes.GetN (); ++i)
       {
-        anim.UpdateNodeDescription (enbNodes.Get (i), "SERVER"); // Optional
+        anim.UpdateNodeDescription (enbNodes.Get (i), "LTE"); // Optional
         anim.UpdateNodeColor (enbNodes.Get (i), 0, 255, 0); // Coloração
       }
       anim.EnablePacketMetadata (); // Optional
       for (uint32_t i = 0; i < slNodes.GetN (); ++i)
       {
-        anim.UpdateNodeDescription (slNodes.Get (i), "SERVER"); // Optional
+        anim.UpdateNodeDescription (slNodes.Get (i), "SLAVE"); // Optional
         anim.UpdateNodeColor (slNodes.Get (i), 0, 0, 255); // Coloração
       }
       anim.EnablePacketMetadata (); // Optional
