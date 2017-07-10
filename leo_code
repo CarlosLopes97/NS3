@@ -1,0 +1,133 @@
+// Métodos QOS - colocar antes da main
+
+void ThroughputMonitor (FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> monitor, Gnuplot2dDataset dataset){
+
+  double tempThroughput = 0.0;
+  monitor->CheckForLostPackets(); 
+  std::map<FlowId, FlowMonitor::FlowStats> flowStats = monitor->GetFlowStats();
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (fmhelper->GetClassifier());
+
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator stats = flowStats.begin (); stats != flowStats.end (); ++stats){ 
+      tempThroughput = (stats->second.rxBytes * 8.0 / (stats->second.timeLastRxPacket.GetSeconds() - stats->second.timeFirstTxPacket.GetSeconds())/1024/1024);
+      
+      //if(stats->first == 11) {
+      dataset.Add((double)Simulator::Now().GetSeconds(), (double)tempThroughput);
+      //}
+  }
+  
+  //Tempo que será iniciado
+  Simulator::Schedule(Seconds(1),&ThroughputMonitor, fmhelper, monitor, dataset);
+}
+
+void DelayMonitor (FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> monitor, Gnuplot2dDataset dataset1){
+  
+  double delay = 0.0;
+  monitor->CheckForLostPackets(); 
+  std::map<FlowId, FlowMonitor::FlowStats> flowStats = monitor->GetFlowStats();
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (fmhelper->GetClassifier());
+
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator stats = flowStats.begin (); stats != flowStats.end (); ++stats){ 
+      //Ipv4FlowClassifier::FiveTuple fiveTuple = classifier->FindFlow (stats->first);
+      delay = stats->second.delaySum.GetSeconds ();
+      
+      //if(stats->first == 11) {
+      dataset1.Add((double)Simulator::Now().GetSeconds(), (double)delay);
+      //}    
+    }
+  
+  //Tempo que será iniciado
+  Simulator::Schedule(Seconds(1),&DelayMonitor, fmhelper, monitor, dataset1);
+}
+
+void LostPacketsMonitor (FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> monitor, Gnuplot2dDataset dataset2){
+  
+  double packets = 0.0;
+  monitor->CheckForLostPackets(); 
+  std::map<FlowId, FlowMonitor::FlowStats> flowStats = monitor->GetFlowStats();
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (fmhelper->GetClassifier());
+
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator stats = flowStats.begin (); stats != flowStats.end (); ++stats){ 
+      //Ipv4FlowClassifier::FiveTuple fiveTuple = classifier->FindFlow (stats->first);
+      packets = stats->second.lostPackets;
+      
+      //if(stats->first == 2) {
+      dataset2.Add((double)Simulator::Now().GetSeconds(), (double)packets);
+      //}
+    }
+  
+  //Tempo que será iniciado
+  Simulator::Schedule(Seconds(1),&LostPacketsMonitor, fmhelper, monitor, dataset2);
+}
+
+void JitterMonitor (FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> monitor, Gnuplot2dDataset dataset3){
+  
+  double jitter = 0.0;
+  monitor->CheckForLostPackets(); 
+  std::map<FlowId, FlowMonitor::FlowStats> flowStats = monitor->GetFlowStats();
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (fmhelper->GetClassifier());
+
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator stats = flowStats.begin (); stats != flowStats.end (); ++stats){ 
+      //Ipv4FlowClassifier::FiveTuple fiveTuple = classifier->FindFlow (stats->first);
+      jitter = stats->second.jitterSum.GetSeconds ();
+      
+      //if(stats->first == 2) {
+      dataset3.Add((double)Simulator::Now().GetSeconds(), (double)jitter);
+      //}
+    }
+  
+  //Tempo que será iniciado
+  Simulator::Schedule(Seconds(1),&LostPacketsMonitor, fmhelper, monitor, dataset3);
+}
+
+void ImprimeMetricas (FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> monitor){
+  double tempThroughput = 0.0;
+  monitor->CheckForLostPackets(); 
+  std::map<FlowId, FlowMonitor::FlowStats> flowStats = monitor->GetFlowStats();
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (fmhelper->GetClassifier());
+       
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator stats = flowStats.begin (); stats != flowStats.end (); ++stats){ 
+      // A tuple: Source-ip, destination-ip, protocol, source-port, destination-port
+      Ipv4FlowClassifier::FiveTuple fiveTuple = classifier->FindFlow (stats->first);
+      
+      std::cout<<"Flow ID: " << stats->first <<" ; "<< fiveTuple.sourceAddress <<" -----> "<<fiveTuple.destinationAddress<<std::endl;
+      std::cout<<"Tx Packets = " << stats->second.txPackets<<std::endl;
+      std::cout<<"Rx Packets = " << stats->second.rxPackets<<std::endl;
+      std::cout<<"Duration: " <<stats->second.timeLastRxPacket.GetSeconds() - stats->second.timeFirstTxPacket.GetSeconds()<<std::endl;
+      std::cout<<"Last Received Packet: "<< stats->second.timeLastRxPacket.GetSeconds()<<" Seconds"<<std::endl;
+      tempThroughput = (stats->second.rxBytes * 8.0 / (stats->second.timeLastRxPacket.GetSeconds() - stats->second.timeFirstTxPacket.GetSeconds())/1024/1024);
+      std::cout<<"Throughput: "<< tempThroughput <<" Mbps"<<std::endl;
+      std::cout<< "Delay: " << stats->second.delaySum.GetSeconds () << std::endl;
+      std::cout<< "LostPackets: " << stats->second.lostPackets << std::endl;
+      std::cout<< "Jitter: " << stats->second.jitterSum.GetSeconds () << std::endl;
+      //std::cout<<"Last Received Packet: "<< stats->second.timeLastRxPacket.GetSeconds()<<" Seconds ---->" << "Throughput: " << tempThroughput << " Kbps" << std::endl;
+      std::cout<<"------------------------------------------"<<std::endl;
+    }
+  
+  //Tempo que será iniciado
+  Simulator::Schedule(Seconds(1),&ImprimeMetricas, fmhelper, monitor);
+}
+
+
+//Cria UEs
+  NodeContainer ueNodes;
+  ueNodes.Create (nUe);
+//Cria ENBs
+  NodeContainer enbNodes;
+  enbNodes.Create (nEnb);
+//Cria WiFiNodes
+  NodeContainer wifiNodes = ueNodes;  //adiciona a segunda interface aos dispositivos
+//Instala pilha de internet nos UEs
+  internet.Install(ueNodes);
+
+
+
+echo "------------------- AVALIAÇÃO DE QoE - SSIM -------------------"
+
+path=pwd
+wine $caminho_video/msu_metric.exe -f Via_cif.yuv IYUV -yw 352 -yh 288 -f 'Vp_cif'$i'.yuv' -sc 1 -cod $path -metr ssim_precise -cc YYUV
+
+
+echo "------------------- AVALIAÇÃO DE QoE - VQM -------------------"
+
+path=pwd
+wine $caminho_video/msu_metric.exe -f Via_cif.yuv IYUV -yw 352 -yh 288 -f 'Vp_cif'$i'.yuv' -sc 1 -cod $path -metr vqm_precise -cc YYUV
